@@ -43,7 +43,7 @@ export const addProduct = async (req: Request, res: Response): Promise<void> => 
 
     // tags/reviews may arrive as JSON strings when sent via multipart/form-data
     const tags = req.body.tags ? JSON.parse(req.body.tags) : [];
-    const reviews = req.body.reviews ? JSON.parse(req.body.reviews) : [];
+   
 
     let image;
     
@@ -57,7 +57,7 @@ export const addProduct = async (req: Request, res: Response): Promise<void> => 
       description,
       price,
       tags,
-      reviews,
+      
       image,
     });
 
