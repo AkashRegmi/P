@@ -5,14 +5,63 @@ import {
   deleteFromCloudinary,
 } from "../config/cloudinaryUpload";
 
+const parseTags = (value: unknown): string[] => {
+  if (!value) return [];
+
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item)).filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => String(item)).filter(Boolean);
+      }
+      return [value].filter(Boolean);
+    } catch {
+      return [value].filter(Boolean);
+    }
+  }
+
+  return [];
+};
+
 // GET /api/products
 export const getAllProducts = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
   try {
-    const products = await ProductModel.find().sort({ createdAt: -1 });
-    res.status(200).json({ products, total: products.length });
+    const search = String(req.query.search || "");
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const searchQuery = search
+      ? {
+          $or: [
+            { name: { $regex: search, $options: "i" } },
+            { category: { $regex: search, $options: "i" } },
+            { brand: { $regex: search, $options: "i" } },
+          ],
+        }
+      : {};
+    const products = await ProductModel.find(searchQuery)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+    const total = await ProductModel.countDocuments(searchQuery);
+    const totalPages = Math.ceil(total / limit) || 1;
+    res.status(200).json({
+      products,
+      total,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+      },
+    });
   } catch (err) {
     res.status(500).json({
       message: "Failed to fetch products",
@@ -50,31 +99,24 @@ export const addProduct = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const { name, description, price } = req.body;
-
-    if (!name || !description || price === undefined) {
+    const { name, description, price, category, brand, stock, isFeatured } =
+      req.body;
+    
+    if (!name || !description || price === undefined || !category || !brand) {
       res.status(400).json({
-        message: "name, description and price are required",
+        message: "name, description, price, category and brand are required",
       });
       return;
     }
 
-
-    let tags: string[] = [];
-
-    if (req.body.tags) {
-      if (Array.isArray(req.body.tags)) {
-        tags = req.body.tags;
-      } else if (typeof req.body.tags === "string") {
-        try {
-          const parsed = JSON.parse(req.body.tags);
-
-          tags = Array.isArray(parsed) ? parsed : [req.body.tags];
-        } catch {
-          tags = [req.body.tags];
-        }
-      }
+    if (stock === undefined || Number(stock) < 0) {
+      res.status(400).json({
+        message: "stock is required and must be 0 or more",
+      });
+      return;
     }
+
+    const tags = parseTags(req.body.tags);
 
     if (!req.file) {
       res.status(400).json({
@@ -94,11 +136,13 @@ export const addProduct = async (
       name,
       description,
       price: Number(price),
+      category,
+      brand,
+      stock: Number(stock),
       tags,
+      isFeatured: Boolean(isFeatured),
       image,
     });
-
-    
 
     res.status(201).json({
       message: "Product Added Successfully",
@@ -127,11 +171,16 @@ export const editProduct = async (
       return;
     }
 
-    const { name, description, price } = req.body;
+    const { name, description, price, category, brand, stock, isFeatured } =
+      req.body;
     if (name !== undefined) product.name = name;
     if (description !== undefined) product.description = description;
-    if (price !== undefined) product.price = price;
-    if (req.body.tags !== undefined) product.tags = JSON.parse(req.body.tags);
+    if (price !== undefined) product.price = Number(price);
+    if (category !== undefined) product.category = category;
+    if (brand !== undefined) product.brand = brand;
+    if (stock !== undefined) product.stock = Number(stock);
+    if (isFeatured !== undefined) product.isFeatured = Boolean(isFeatured);
+    if (req.body.tags !== undefined) product.tags = parseTags(req.body.tags);
 
     // If a new image was uploaded, replace the old one on Cloudinary
     if (req.file) {
