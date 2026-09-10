@@ -154,3 +154,82 @@ export const getCurrentUser = async (
     });
   }
 };
+
+export const refreshAccessToken = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      res.status(401).json({
+        message: "Refresh token is required",
+      });
+      return;
+    }
+
+    const secret = process.env.JWT_SECRET;
+
+    if (!secret) {
+      res.status(500).json({
+        message: "JWT_SECRET is not configured",
+      });
+      return;
+    }
+
+    // Verify refresh token
+    const decoded = jwt.verify(refreshToken, secret) as {
+      id: string;
+      email: string;
+      name: string;
+    };
+
+    // Optional but recommended: check if user still exists
+    const user = await UserModel.findById(decoded.id).select("-password");
+
+    if (!user) {
+      res.status(401).json({
+        message: "User no longer exists",
+      });
+      return;
+    }
+
+    // Generate only a new access token
+    const accessToken = jwt.sign(
+      {
+        id: user._id.toString(),
+        email: user.email,
+        name: user.name,
+      },
+      secret,
+      {
+        expiresIn: "15m",
+      },
+    );
+
+    res.status(200).json({
+      message: "Access token refreshed successfully",
+      accessToken,
+    });
+  } catch (err) {
+    if (err instanceof jwt.TokenExpiredError) {
+      res.status(401).json({
+        message: "Refresh token has expired. Please login again.",
+      });
+      return;
+    }
+
+    if (err instanceof jwt.JsonWebTokenError) {
+      res.status(401).json({
+        message: "Invalid refresh token",
+      });
+      return;
+    }
+
+    res.status(500).json({
+      message: "Failed to refresh access token",
+      error: (err as Error).message,
+    });
+  }
+};
