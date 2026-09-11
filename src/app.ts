@@ -3,6 +3,7 @@ import express from "express";
 import productRoutes from "./routes/productRoutes";
 import authRoutes from "./routes/authRoutes";
 import orderRoutes from "./routes/orderRoutes";
+import dashboardRoutes from "./routes/dashboardRoutes";
 import { connectDB } from "./config/db";
 import cors from "cors";
 
@@ -28,6 +29,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 const start = async () => {
   await connectDB();

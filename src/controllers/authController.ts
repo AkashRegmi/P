@@ -111,7 +111,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const {accessToken,refreshToken} = generateToken({
+    const { accessToken, refreshToken } = generateToken({
       id: user._id.toString(),
       email: user.email,
       name: user.name,
@@ -161,9 +161,9 @@ export const refreshAccessToken = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const { refreshToken } = req.body;
+    const { oldRefreshToken } = req.body;
 
-    if (!refreshToken) {
+    if (!oldRefreshToken) {
       res.status(401).json({
         message: "Refresh token is required",
       });
@@ -180,7 +180,7 @@ export const refreshAccessToken = async (
     }
 
     // Verify refresh token
-    const decoded = jwt.verify(refreshToken, secret) as {
+    const decoded = jwt.verify(oldRefreshToken, secret) as {
       id: string;
       email: string;
       name: string;
@@ -208,10 +208,22 @@ export const refreshAccessToken = async (
         expiresIn: "15m",
       },
     );
+    const refreshToken = jwt.sign(
+      {
+        id: user._id.toString(),
+        email: user.email,
+        name: user.name,
+      },
+      secret,
+      {
+        expiresIn: "7d",
+      },
+    );
 
     res.status(200).json({
       message: "Access token refreshed successfully",
       accessToken,
+      refreshToken,
     });
   } catch (err) {
     if (err instanceof jwt.TokenExpiredError) {

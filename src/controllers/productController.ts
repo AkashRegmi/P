@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import ExcelJS from "exceljs";
 import { ProductModel } from "../models/Product";
 import {
   uploadBufferToCloudinary,
@@ -25,6 +26,19 @@ const parseTags = (value: unknown): string[] => {
   }
 
   return [];
+};
+
+const parseExportDate = (value: unknown, endDate = false): Date | null => {
+  if (typeof value !== "string" || !value.trim()) return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  if (endDate && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    date.setUTCDate(date.getUTCDate() + 1);
+  }
+
+  return date;
 };
 
 // GET /api/products
@@ -70,6 +84,111 @@ export const getAllProducts = async (
   }
 };
 
+// GET /api/products/export?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&brandName=Brand
+export const exportProducts = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+
+  const startDate =
+    req.query.startDate === undefined
+      ? today
+      : parseExportDate(req.query.startDate);
+  const endDate =
+    req.query.endDate === undefined
+      ? tomorrow
+      : parseExportDate(req.query.endDate, true);
+  const brandName =
+    typeof req.query.brandName === "string" ? req.query.brandName.trim() : "";
+
+  if (!startDate || !endDate) {
+    res.status(400).json({
+      message: "startDate and endDate must use the YYYY-MM-DD format",
+    });
+    return;
+  }
+
+  if (startDate >= endDate) {
+    res.status(400).json({ message: "startDate must be before endDate" });
+    return;
+  }
+
+  try {
+    const productQuery = {
+      createdAt: { $gte: startDate, $lt: endDate },
+      ...(brandName
+        ? {
+            brand: {
+              $regex: `^${brandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+              $options: "i",
+            },
+          }
+        : {}),
+    };
+
+    const products = await ProductModel.find(productQuery).sort({
+      createdAt: -1,
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Products");
+
+    worksheet.columns = [
+      { header: "Name", key: "name", width: 24 },
+      { header: "Description", key: "description", width: 36 },
+      { header: "Price", key: "price", width: 12 },
+      { header: "Category", key: "category", width: 18 },
+      { header: "Brand", key: "brand", width: 18 },
+      { header: "Stock", key: "stock", width: 10 },
+      { header: "Tags", key: "tags", width: 28 },
+      { header: "Featured", key: "isFeatured", width: 12 },
+      { header: "Created At", key: "createdAt", width: 24 },
+      { header: "Updated At", key: "updatedAt", width: 24 },
+    ];
+
+    for (const product of products) {
+      worksheet.addRow({
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        category: product.category,
+        brand: product.brand,
+        stock: product.stock,
+        tags: product.tags.join(", "),
+        isFeatured: product.isFeatured ? "Yes" : "No",
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
+      });
+    }
+
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getColumn("price").numFmt = "0.00";
+    worksheet.getColumn("createdAt").numFmt = "yyyy-mm-dd hh:mm:ss";
+    worksheet.getColumn("updatedAt").numFmt = "yyyy-mm-dd hh:mm:ss";
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="products-${req.query.startDate}-to-${req.query.endDate}.xlsx"`,
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    res.status(500).json({
+      message: "Failed to export products",
+      error: (err as Error).message,
+    });
+  }
+};
+
 // GET /api/products/:id
 export const getProductById = async (
   req: Request,
@@ -101,7 +220,7 @@ export const addProduct = async (
   try {
     const { name, description, price, category, brand, stock, isFeatured } =
       req.body;
-    
+
     if (!name || !description || price === undefined || !category || !brand) {
       res.status(400).json({
         message: "name, description, price, category and brand are required",
