@@ -14,13 +14,47 @@ export const getAllOrders = async (
       return;
     }
 
-    const orders = await OrderModel.find({ user: userId })
+    const search = String(req.query.search || "").trim();
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.max(1, Number(req.query.limit) || 10);
+    const skip = (page - 1) * limit;
+    const orderStatus = String(req.query.orderStatus || "").trim();
+    const paymentStatus = String(req.query.paymentStatus || "").trim();
+    const searchQuery = search
+      ? {
+          $or: [
+            { "items.name": { $regex: search, $options: "i" } },
+            { "shippingAddress.fullName": { $regex: search, $options: "i" } },
+            { "shippingAddress.city": { $regex: search, $options: "i" } },
+            { "shippingAddress.postalCode": { $regex: search, $options: "i" } },
+          ],
+        }
+      : {};
+    const orderFilter = {
+      user: userId,
+      ...(orderStatus ? { status: orderStatus } : {}),
+      ...(paymentStatus ? { paymentStatus } : {}),
+      ...searchQuery,
+    };
+
+    const orders = await OrderModel.find(orderFilter)
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
       .populate("user", "name email");
+    const total = await OrderModel.countDocuments(orderFilter);
+    const totalPages = Math.ceil(total / limit) || 1;
 
     res.status(200).json({
       success: true,
       orders,
+      total,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+      },
     });
   } catch (err) {
     res.status(500).json({
