@@ -6,6 +6,7 @@ import {
   addProduct,
   editProduct,
   deleteProduct,
+  getAllProductsWithoutPagination,
 } from "../controllers/productController";
 import { upload } from "../middleware/upload";
 import authMiddleware from "../middleware/authMiddleware";
@@ -15,6 +16,7 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get("/", getAllProducts);
+router.get("/all", getAllProductsWithoutPagination);
 router.get("/export", exportProducts);
 router.get("/:id", getProductById);
 router.post("/", upload.single("image"), addProduct);

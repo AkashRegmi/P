@@ -84,6 +84,39 @@ export const getAllProducts = async (
   }
 };
 
+// GET /api/products/all
+export const getAllProductsWithoutPagination = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const search = String(req.query.search || "");
+    const searchQuery = search
+      ? {
+          $or: [
+            { name: { $regex: search, $options: "i" } },
+            { category: { $regex: search, $options: "i" } },
+            { brand: { $regex: search, $options: "i" } },
+          ],
+        }
+      : {};
+
+    const products = await ProductModel.find(searchQuery).sort({
+      createdAt: -1,
+    });
+
+    res.status(200).json({
+      products,
+      total: products.length,
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: "Failed to fetch all products",
+      error: (err as Error).message,
+    });
+  }
+};
+
 // GET /api/products/export?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&brandName=Brand
 export const exportProducts = async (
   req: Request,
