@@ -15,14 +15,14 @@ export const validateOrderInput = (
   }
 
   for (const [index, item] of items.entries()) {
-    if (!item.product || !item.name || !item.price || !item.quantity) {
+    if (!item.product  || !item.quantity) {
       res.status(400).json({
         message: `Invalid item at index ${index}`,
       });
       return;
     }
 
-    if (Number(item.quantity) <= 0) {
+    if (Number(item.quatity) <= 0) {
       res.status(400).json({
         message: `Quantity must be greater than 0 for item at index ${index}`,
       });

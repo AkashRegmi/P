@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { OrderModel } from "../models/Order";
 import { AuthRequest } from "../middleware/authMiddleware";
+import { ProductModel } from "../models/Product";
 
 export const getAllOrders = async (
   req: AuthRequest,
@@ -41,7 +42,8 @@ export const getAllOrders = async (
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("user", "name email");
+      .populate("user", "name email")
+      .populate("items.product");
     const total = await OrderModel.countDocuments(orderFilter);
     const totalPages = Math.ceil(total / limit) || 1;
 
@@ -103,6 +105,7 @@ export const createOrder = async (
   res: Response,
 ): Promise<void> => {
   try {
+    console.log(req.body);
     const userId = req.user?.id;
 
     if (!userId) {
@@ -112,21 +115,48 @@ export const createOrder = async (
 
     const { items, shippingAddress, paymentStatus } = req.body;
 
-    const totalAmount = items.reduce(
-      (sum: number, item: { price: number; quantity: number }) =>
-        sum + item.price * item.quantity,
+    const productIds = items.map(
+      (item: { product: string; quantity: number }) => item.product,
+    );
+
+    const products = await ProductModel.find({
+      _id: { $in: productIds },
+    });
+
+    const orderItems = items.map(
+      (item: { product: string; quantity: number }) => {
+        const product = products.find((p) => p._id.toString() === item.product);
+
+        if (!product) {
+          throw new Error(`Product ${item.product} not found`);
+        }
+
+        return {
+          product: product._id,
+          name: product.name,
+          quantity: item.quantity,
+          price: product.price,
+          image: product.image?.url,
+        };
+      },
+    );
+
+    const totalAmount = orderItems.reduce(
+      (sum: number, item: any) => sum + item.price * item.quantity,
       0,
     );
 
     const order = await OrderModel.create({
       user: userId,
-      items,
+      items: orderItems,
       shippingAddress,
       totalAmount,
       paymentStatus: paymentStatus || "pending",
     });
 
     res.status(201).json({
+      status: 201,
+
       message: "Order created successfully",
       order,
     });

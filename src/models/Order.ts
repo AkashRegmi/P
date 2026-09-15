@@ -2,10 +2,8 @@ import { Schema, model, Document, Types } from "mongoose";
 
 export interface OrderItem {
   product: Types.ObjectId;
-  name: string;
+
   quantity: number;
-  price: number;
-  image?: string;
 }
 
 export interface ShippingAddress {
@@ -31,10 +29,8 @@ export interface OrderDocument extends Document {
 const orderItemSchema = new Schema<OrderItem>(
   {
     product: { type: Schema.Types.ObjectId, ref: "Product", required: true },
-    name: { type: String, required: true, trim: true },
+
     quantity: { type: Number, required: true, min: 1 },
-    price: { type: Number, required: true, min: 0 },
-    image: { type: String },
   },
   { _id: false },
 );
