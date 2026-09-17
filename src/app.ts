@@ -5,6 +5,7 @@ import authRoutes from "./routes/authRoutes";
 import orderRoutes from "./routes/orderRoutes";
 import dashboardRoutes from "./routes/dashboardRoutes";
 import stripeRoute from "./routes/striperoute";
+import cartRoutes from "./routes/cartRoutes";
 import { connectDB } from "./config/db";
 import cors from "cors";
 
@@ -30,6 +31,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/cart", cartRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 // app.use("/create-checkout-session", stripeRoute);
 
