@@ -13,10 +13,11 @@ import authMiddleware from "../middleware/authMiddleware";
 
 const router = Router();
 
-router.use(authMiddleware);
-
 router.get("/", getAllProducts);
 router.get("/all", getAllProductsWithoutPagination);
+
+router.use(authMiddleware);
+
 router.get("/export", exportProducts);
 router.get("/:id", getProductById);
 router.post("/", upload.single("image"), addProduct);
