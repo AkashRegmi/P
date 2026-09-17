@@ -31,7 +31,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-app.use("/create-checkout-session", stripeRoute);
+// app.use("/create-checkout-session", stripeRoute);
 
 const start = async () => {
   await connectDB();
