@@ -4,6 +4,7 @@ export interface UserDocument extends Document {
   name: string;
   email: string;
   password: string;
+  role: "admin" | "user";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,6 +20,12 @@ const userSchema = new Schema<UserDocument>(
       trim: true,
     },
     password: { type: String, required: true },
+    role: {
+      type: String,
+      enum: ["admin", "user"],
+      default: "user",
+      required: true,
+    },
   },
   { timestamps: true },
 );

@@ -4,7 +4,12 @@ import jwt from "jsonwebtoken";
 import { UserModel } from "../models/User";
 import { AuthRequest } from "../middleware/authMiddleware";
 
-const generateToken = (user: { id: string; email: string; name: string }) => {
+const generateToken = (user: {
+  id: string;
+  email: string;
+  name: string;
+  role: "admin" | "user";
+}) => {
   const secret = process.env.JWT_SECRET;
 
   if (!secret) {
@@ -16,6 +21,7 @@ const generateToken = (user: { id: string; email: string; name: string }) => {
       id: user.id,
       email: user.email,
       name: user.name,
+      role: user.role,
     },
     secret,
     { expiresIn: "15m" },
@@ -25,6 +31,7 @@ const generateToken = (user: { id: string; email: string; name: string }) => {
       id: user.id,
       email: user.email,
       name: user.name,
+      role: user.role,
     },
     secret,
     { expiresIn: "7d" },
@@ -38,7 +45,6 @@ export const registerUser = async (
 ): Promise<void> => {
   try {
     const { name, email, password } = req.body;
-
     if (!name || !email || !password) {
       res.status(400).json({
         message: "name, email and password are required",
@@ -61,12 +67,14 @@ export const registerUser = async (
       name,
       email: email.toLowerCase(),
       password: hashedPassword,
+      role: "user",
     });
 
     const token = generateToken({
       id: user._id.toString(),
       email: user.email,
       name: user.name,
+      role: user.role,
     });
 
     res.status(201).json({
@@ -76,6 +84,7 @@ export const registerUser = async (
         id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role,
       },
     });
   } catch (err) {
@@ -110,11 +119,11 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       res.status(401).json({ message: "Invalid email or password" });
       return;
     }
-
     const { accessToken, refreshToken } = generateToken({
       id: user._id.toString(),
       email: user.email,
       name: user.name,
+      role: user.role,
     });
 
     res.status(200).json({
@@ -125,6 +134,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
         id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role,
       },
     });
   } catch (err) {
@@ -184,6 +194,7 @@ export const refreshAccessToken = async (
       id: string;
       email: string;
       name: string;
+      role: "admin" | "user";
     };
 
     // Optional but recommended: check if user still exists
@@ -202,6 +213,7 @@ export const refreshAccessToken = async (
         id: user._id.toString(),
         email: user.email,
         name: user.name,
+        role: user.role,
       },
       secret,
       {
@@ -213,6 +225,7 @@ export const refreshAccessToken = async (
         id: user._id.toString(),
         email: user.email,
         name: user.name,
+        role: user.role,
       },
       secret,
       {
