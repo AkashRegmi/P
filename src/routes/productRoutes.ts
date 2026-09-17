@@ -15,11 +15,12 @@ const router = Router();
 
 router.get("/", getAllProducts);
 router.get("/all", getAllProductsWithoutPagination);
+router.get("/:id", getProductById);
 
 router.use(authMiddleware);
 
 router.get("/export", exportProducts);
-router.get("/:id", getProductById);
+
 router.post("/", upload.single("image"), addProduct);
 router.put("/:id", upload.single("image"), editProduct);
 router.delete("/:id", deleteProduct);
