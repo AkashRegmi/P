@@ -47,17 +47,17 @@ export const addItemToCart = async (
   if (!userId) return;
 
   try {
-    const { product: productId, quantity } = req.body;
+    const { productId, quantity } = req.body;
     const requestedQuantity = Number(quantity);
-
-    if (
-      !mongoose.isValidObjectId(productId) ||
-      !Number.isInteger(requestedQuantity) ||
-      requestedQuantity < 1
-    ) {
+    if (!mongoose.isValidObjectId(productId)) {
       res.status(400).json({
-        message:
-          "product must be a valid id and quantity must be a positive integer",
+        message: "product must be a valid id",
+      });
+      return;
+    }
+    if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1) {
+      res.status(400).json({
+        message: "product quantity must be a positive integer",
       });
       return;
     }

@@ -2,6 +2,7 @@ import { Response } from "express";
 import { OrderModel } from "../models/Order";
 import { AuthRequest } from "../middleware/authMiddleware";
 import { ProductModel } from "../models/Product";
+import { CartModel } from "../models/Cart";
 
 export const getAllOrders = async (
   req: AuthRequest,
@@ -9,6 +10,7 @@ export const getAllOrders = async (
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
+    const userRole = req.user?.role;
 
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
@@ -32,9 +34,13 @@ export const getAllOrders = async (
         }
       : {};
     const orderFilter = {
-      user: userId,
+      // Admin can see all orders
+      ...(userRole === "admin" ? {} : { user: userId }),
+
       ...(orderStatus ? { status: orderStatus } : {}),
+
       ...(paymentStatus ? { paymentStatus } : {}),
+
       ...searchQuery,
     };
 
@@ -105,7 +111,6 @@ export const createOrder = async (
   res: Response,
 ): Promise<void> => {
   try {
-    console.log(req.body);
     const userId = req.user?.id;
 
     if (!userId) {
@@ -153,6 +158,7 @@ export const createOrder = async (
       totalAmount,
       paymentStatus: paymentStatus || "pending",
     });
+    await CartModel.findOneAndUpdate({ user: userId }, { $set: { items: [] } });
 
     res.status(201).json({
       status: 201,
